@@ -1,34 +1,10 @@
-# Python
+# Python-generated files
 __pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-*.egg-info/
-.eggs/
-dist/
+*.py[oc]
 build/
+dist/
+wheels/
+*.egg-info
 
-# Virtual envs
-.venv/
-venv/
-ENV/
-
-# OS / IDE
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# Streamlit
-.streamlit/
-
-# Local data & secrets
-.env
-*.db
-*.sqlite
-*.sqlite3
-
-# Cache
-*.log
-.cache/
+# Virtual environments
+.venv

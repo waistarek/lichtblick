@@ -1,362 +1,418 @@
-# Lichtblick
 
-Ein schlanker Social‑Prototype: **FastAPI**‑Backend mit **fastapi-users** (JWT‑Auth), **ImageKit** für Medien‑Uploads, **SQLAlchemy async** auf SQLite sowie ein **Streamlit**‑Frontend.
+# Lichtblick – Social Media Prototype
 
----
+**A Python-based social media prototype featuring a FastAPI backend, Streamlit frontend, JWT authentication, and cloud-based media storage.**
 
-## Inhalt
+Lichtblick is a social media application prototype developed to explore full-stack development with Python.
 
-- [Features](#features)
-- [Architektur](#architektur)
-- [Projektstruktur](#projektstruktur)
-- [Voraussetzungen](#voraussetzungen)
-- [Installation](#installation)
-- [Umgebungsvariablen (.env)](#umgebungsvariablen-env)
-- [Starten](#starten)
-- [Nutzung](#nutzung)
-- [API-Referenz](#api-referenz)
-- [Datenbankmodell](#datenbankmodell)
-- [Konfiguration](#konfiguration)
-- [Troubleshooting](#troubleshooting)
-- [Sicherheit & Secrets](#sicherheit--secrets)
-- [Tests & manuelle Checks](#tests--manuelle-checks)
-- [Deployment-Hinweise](#deployment-hinweise)
-- [Git & GitHub](#git--github)
-- [Roadmap](#roadmap)
-- [Lizenz](#lizenz)
+The project combines a REST API built with FastAPI, a Streamlit user interface, asynchronous database operations with SQLAlchemy, and ImageKit integration for media uploads.
 
----
+Users can register, sign in, publish image or video posts, browse a shared feed, interact through comments, and delete their own posts.
 
-## Features
+The focus of this project is on connecting authentication, persistent data storage, external services, and a frontend into a working application architecture.
 
-- **Auth** mit fastapi-users: Registrierung, Login (JWT), `GET /users/me`.
-- **Uploads** von Bildern/Videos zu **ImageKit** inkl. URL‑Rückgabe.
-- **Beiträge** in SQLite (`./test.db`) speichern und listen.
-- **Kommentare** zu Beiträgen (Serverendpunkte vorhanden).
-- **Likes/Dislikes** in der UI (fällt lokal zurück, falls Backend-Endpunkte fehlen).
-- **Hell/Dunkel‑Modus** im Streamlit‑Frontend.
+## Key Features
 
----
+### User Authentication
+- User registration and login
+- JWT-based authentication using `fastapi-users`
+- Protected API endpoints
+- User account management
+- Authentication-based access to application features
 
-## Architektur
+### Posts and Media
+- Image and video uploads through ImageKit
+- Optional captions for uploaded media
+- Persistent post storage with SQLite
+- Chronological feed displaying recent posts
+- Post deletion restricted to the respective owner
 
+### Social Interactions
+- Comments associated with individual posts
+- Display of comments and their authors
+- Like and dislike controls in the frontend
+- Local UI fallback for reactions without backend persistence
+
+### User Interface
+- Interactive frontend built with Streamlit
+- Login and registration views
+- Shared post feed
+- Media upload interface
+- Light and dark mode
+
+## Tech Stack
+
+| Category | Technologies |
+|----------|--------------|
+| Language | Python |
+| Backend | FastAPI, Uvicorn |
+| Frontend | Streamlit |
+| Authentication | fastapi-users, JWT |
+| Database | SQLite |
+| ORM | SQLAlchemy (Async) |
+| Database Driver | aiosqlite |
+| Media Storage | ImageKit |
+| Data Validation | Pydantic |
+| Environment Configuration | python-dotenv |
+| Dependency Management | uv |
+
+## Architecture
+
+Lichtblick follows a frontend-backend architecture.
+
+```text
+                 Streamlit Frontend
+                         |
+                         |
+                HTTP / REST API
+                  JWT Bearer Token
+                         |
+                         v
+                  FastAPI Backend
+                         |
+             +-----------+-----------+
+             |                       |
+             v                       v
+       SQLAlchemy Async          ImageKit SDK
+             |                       |
+             v                       v
+        SQLite Database       Cloud Media Storage
+             |
+       +-----+------+
+       |     |      |
+      Users Posts Comments
 ```
-[Streamlit-Frontend]
-        │  REST (JSON, JWT)
-        ▼
-[FastAPI + fastapi-users] ── SQLAlchemy (async) ──> [SQLite (test.db)]
-        │
-        └── ImageKit SDK ──> [ImageKit Storage/CDN]
+
+### Architecture Overview
+
+**Frontend**
+
+The Streamlit application provides the user interface for authentication, publishing posts, browsing the feed, and interacting with comments.
+
+**Backend**
+
+FastAPI handles HTTP requests, authentication, media uploads, post management, and database interactions.
+
+**Authentication**
+
+The application uses `fastapi-users` with JWT Bearer tokens. Protected endpoints require an authenticated, active user.
+
+**Database**
+
+SQLAlchemy provides asynchronous database access, while SQLite stores user accounts, posts, and comments.
+
+**Media Storage**
+
+ImageKit handles uploaded media. The application stores media URLs and related metadata in the database rather than maintaining a separate local media library.
+
+## Project Structure
+
+```text
+lichtblick/
+|
+|-- backend/
+|   |-- api.py
+|   |-- users.py
+|   |-- database.py
+|   |-- schemas.py
+|   |-- storage_imagekit.py
+|
+|-- frontend_app.py
+|-- run_backend.py
+|
+|-- pyproject.toml
+|-- uv.lock
+|-- .gitignore
+|-- .python-version
+|-- LICENSE
+|-- README.md
 ```
 
-- Das Frontend ruft die API mit JWT‑Bearer‑Token auf.
-- Das Backend verwaltet Benutzer, speichert Beiträge/Kommentare in SQLite und lädt Medien zu ImageKit hoch.
-- Medien werden **nicht** lokal gespeichert, sondern nur per URL referenziert.
+### Important Files
 
----
+| File | Purpose |
+|------|---------|
+| `backend/api.py` | FastAPI application and API endpoints |
+| `backend/users.py` | JWT authentication and user management |
+| `backend/database.py` | Database models and asynchronous sessions |
+| `backend/schemas.py` | Pydantic request and response schemas |
+| `backend/storage_imagekit.py` | ImageKit client configuration |
+| `frontend_app.py` | Streamlit user interface |
+| `run_backend.py` | Backend startup script |
+| `pyproject.toml` | Project dependencies and configuration |
+| `uv.lock` | Locked dependency versions |
 
-## Projektstruktur
+## Getting Started
 
-```
-.
-├─ backend/
-│  ├─ api.py                 # FastAPI-Routen (Upload, Feed, Delete, Comments)
-│  ├─ users.py               # fastapi-users Konfiguration (JWT, UserManager)
-│  ├─ database.py            # SQLAlchemy-Modelle + async Engine/Session
-│  ├─ schemas.py             # Pydantic-Schemas (User, Post)
-│  └─ storage_imagekit.py    # ImageKit-Client (ENV-basiert)
-├─ run_backend.py            # Uvicorn-Startskript: startet backend.api:app
-├─ frontend_lichtblick_final.py  # Streamlit-Frontend
-├─ .env                      # lokale Konfiguration/Secrets (nicht committen)
-└─ README.md
-```
+The application can be run locally using Python and the `uv` package manager.
 
-> Hinweis: In `database.py` wird der PostgreSQL‑`UUID`‑Typ auch unter SQLite genutzt. Für eine Demo ok, in Produktion passend typisieren.
+### Prerequisites
 
----
+- Python 3.11
+- Git
+- [uv](https://docs.astral.sh/uv/)
+- An [ImageKit](https://imagekit.io/) account
 
-## Voraussetzungen
+An ImageKit account is required to configure media uploads.
 
-- Python **3.10+**
-- Ein **ImageKit**‑Account (für `IMAGEKIT_*` Variablen)
-- Optional **uv** (schnelles Python‑Tooling): <https://github.com/astral-sh/uv>  
-  Alternativ: klassisches `venv` + `pip`
-
----
-
-## Installation
-
-### Variante A: mit `uv` (empfohlen)
+### 1. Clone the Repository
 
 ```bash
-# Im Projektordner
-uv venv
-# Shell aktivieren
-# macOS/Linux:
-source .venv/bin/activate
-# Windows PowerShell:
-# .\.venv\Scripts\Activate.ps1
-
-# Pakete installieren
-uv pip install fastapi "uvicorn[standard]" fastapi-users[sqlalchemy]   sqlalchemy aiosqlite python-dotenv imagekitio requests streamlit
+git clone https://github.com/waistarek/lichtblick.git
+cd lichtblick
 ```
 
-### Variante B: klassisches venv/pip
+### 2. Install Dependencies
+
+Install the project dependencies using `uv`:
 
 ```bash
-python -m venv .venv
-# macOS/Linux:
-source .venv/bin/activate
-# Windows PowerShell:
-# .\.venv\Scripts\Activate.ps1
-
-pip install fastapi "uvicorn[standard]" fastapi-users[sqlalchemy]   sqlalchemy aiosqlite python-dotenv imagekitio requests streamlit
+uv sync
 ```
 
----
+This creates a virtual environment and installs the dependencies defined in `pyproject.toml` and `uv.lock`.
 
-## Umgebungsvariablen (.env)
+### 3. Configure Environment Variables
 
-Lege im Projekt‑Root eine Datei **`.env`** an:
+Create a `.env` file in the project root.
 
-```env
-IMAGEKIT_PRIVATE_KEY=private_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-IMAGEKIT_PUBLIC_KEY=public_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-IMAGEKIT_URL=https://ik.imagekit.io/<dein_path>
+Use the following configuration as a reference:
 
-JWT_SECRET=ein_langer_zufallsstring
+```dotenv
+# ImageKit Configuration
+IMAGEKIT_PRIVATE_KEY=your_private_key
+IMAGEKIT_PUBLIC_KEY=your_public_key
+IMAGEKIT_URL=https://ik.imagekit.io/your_endpoint
+
+# JWT Authentication
+JWT_SECRET=your_secure_random_secret
 JWT_LIFETIME_SECONDS=3600
 
-# optional fürs Frontend (Default: http://localhost:8000)
+# Backend Configuration
 BACKEND_URL=http://localhost:8000
 ```
 
-> **Wichtig:** `.env` **nicht** committen. Bei Leck sofort Schlüssel rotieren.
+Replace the example values with your own configuration.
 
----
-
-## Starten
-
-### Backend
-
-Variante 1: Startskript
+Generate a cryptographically secure JWT secret locally with:
 
 ```bash
-python run_backend.py
-# oder mit uv:
+uv run python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Copy the generated value into your local `.env` file.
+
+**Security:** Never commit `.env` files, private API keys, passwords, or authentication secrets to version control.
+
+### 4. Start the Backend
+
+Run the backend from the project root:
+
+```bash
 uv run python run_backend.py
 ```
 
-Variante 2: direkt uvicorn
+Alternatively, start FastAPI directly for local development:
 
 ```bash
-uvicorn backend.api:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn backend.api:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Beim Start werden die Tabellen per `create_db_and_tables()` in `./test.db` angelegt.
+The backend should be accessible at:
 
-### Frontend
+- API: http://localhost:8000
+- Interactive API documentation: http://localhost:8000/docs
+
+The application initializes its database tables during startup.
+
+### 5. Start the Frontend
+
+Open a second terminal in the project directory.
+
+Start Streamlit:
 
 ```bash
-# BACKEND_URL kommt aus .env oder Default http://localhost:8000
-streamlit run frontend_lichtblick_final.py
-# oder mit uv:
-uv run streamlit run frontend_lichtblick_final.py
+uv run streamlit run frontend_app.py
 ```
 
-Frontend öffnet sich typischerweise unter <http://localhost:8501>.
+The frontend is typically available at:
 
----
+http://localhost:8501
 
-## Nutzung
+Ensure that the backend is running before using features that communicate with the API.
 
-1. **Registrieren**: Reiter „Registrieren“ (E‑Mail + Passwort).
-2. **Anmelden**: Reiter „Anmelden“. Sidebar zeigt den eingeloggten Benutzer.
-3. **Beiträge**: Tab „Beiträge“ listet neueste Posts (Besitzer kann löschen).
-4. **Upload**: Tab „Beitrag erstellen“ → Datei wählen, optional Beschreibung → „Teilen“.
-5. **Kommentare**: Unter jedem Beitrag anzeigen/erstellen.
-6. **Likes/Dislikes**: Buttons pro Beitrag.  
-   *Wenn das Backend die Endpunkte nicht anbietet, reagiert nur die UI lokal.*
+## Using the Application
 
----
+### 1. Create an Account
 
-## API-Referenz
+Open the Streamlit interface and navigate to the registration view.
 
-### Auth (fastapi-users)
+Enter an email address and password to create a user account.
 
-- `POST /auth/jwt/login`  
-  **Form-Body:** `username=<email>&password=<pass>` → `{ "access_token": "..." }`
+### 2. Sign In
 
-- `POST /auth/register`  
-  **JSON:** `{ "email": "...", "password": "..." }` → `201 Created`
+Log in using your registered credentials.
 
-- `GET /users/me`  
-  **Header:** `Authorization: Bearer <token>` → User‑Objekt
+The backend provides JWT-based authentication for protected operations.
 
-### Beiträge & Upload
+### 3. Create a Post
 
-- `POST /upload`  
-  **Multipart:** `file` (Datei), **Form:** `caption` (Text).  
-  Lädt Datei zu ImageKit, speichert Post in DB. Rückgabe: Post‑Objekt.
+Navigate to the post creation interface.
 
-- `GET /feed`  
-  Liefert Liste von Posts, absteigend nach `created_at`. Felder u. a.:  
-  `id`, `user_id`, `caption`, `url`, `file_type`, `created_at`, `is_owner`, `email`
+1. Select an image or video.
+2. Enter an optional caption.
+3. Submit the post.
 
-- `DELETE /post/{post_id}`  
-  Löscht Post, nur wenn `current_active_user` der Besitzer ist.
+The application uploads the media through ImageKit and stores the post information in SQLite.
 
-### Kommentare
+### 4. Explore the Feed
 
-- `GET /post/{post_id}/comments`  
-  Antwort: `{ "comments": [ { "id", "post_id", "user_id", "text", "created_at", "author" }, ... ] }`
+The feed displays stored posts ordered by creation time, with the newest posts first.
 
-- `POST /post/{post_id}/comments`  
-  **JSON:** `{ "text": "..." }` → `{ "ok": true, "id": "<uuid>" }`
+Each post contains media information and associated metadata.
 
-> Likes/Dislikes: Frontend erwartet optional  
-> `POST /post/{id}/like`, `/unlike`, `/dislike`, `/undislike`.  
-> Wenn nicht vorhanden, fällt die UI lokal zurück.
+### 5. Interact with Posts
 
-### Beispiel mit `curl`
+Authenticated users can:
 
-```bash
-# Login
-curl -X POST http://localhost:8000/auth/jwt/login   -H "Content-Type: application/x-www-form-urlencoded"   -d "username=user@example.com&password=secret"
+- View comments
+- Add comments
+- Use the frontend's reaction controls
+- Delete their own posts
 
-# Feed abrufen
-curl -H "Authorization: Bearer <TOKEN>" http://localhost:8000/feed
+Reaction controls currently use local frontend state when backend reaction endpoints are unavailable.
 
-# Kommentar hinzufügen
-curl -X POST http://localhost:8000/post/<POST_ID>/comments   -H "Authorization: Bearer <TOKEN>"   -H "Content-Type: application/json"   -d '{"text":"Schöner Beitrag!"}'
-```
+## REST API
 
----
+The backend exposes endpoints for authentication, posts, media uploads, and comments.
 
-## Datenbankmodell
+FastAPI automatically generates interactive API documentation at `/docs`.
 
-**User** (von fastapi-users)  
-- `id` (UUID, PK), `email`, `hashed_password`, `is_active`, `is_superuser`, `is_verified`
+### Authentication
 
-**Post**  
-- `id` (UUID, PK)  
-- `user_id` (UUID, FK → User.id)  
-- `caption` (Text)  
-- `url` (String, öffentlich)  
-- `file_type` (String, z. B. "image" / "video" oder MIME)  
-- `file_name` (String)  
-- `created_at` (DateTime, UTC)  
-- Beziehungen: `user` (n:1), `comments` (1:n)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/register` | Register a new user |
+| POST | `/auth/jwt/login` | Authenticate and obtain a JWT |
+| POST | `/auth/jwt/logout` | JWT authentication logout endpoint |
+| GET | `/users/me` | Retrieve the current user |
 
-**Comment**  
-- `id` (UUID, PK)  
-- `post_id` (UUID, FK → Post.id)  
-- `user_id` (UUID, FK → User.id)  
-- `text` (Text)  
-- `created_at` (DateTime, UTC)
+Additional password reset and verification routes are registered through `fastapi-users`. Their use in a deployed application requires the corresponding notification and verification workflows.
 
-> In der Demo ist `Comment` im Code an einer Stelle innerhalb der `Post`‑Klasse definiert. Für produktiven Einsatz empfiehlt sich eine Top‑Level‑Definition.
+### Posts and Media
 
----
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/upload` | Upload media and create a post |
+| GET | `/feed` | Retrieve the shared post feed |
+| DELETE | `/post/{post_id}` | Delete a post owned by the authenticated user |
 
-## Konfiguration
+### Comments
 
-- **DB‑Pfad**: `backend/database.py` → `DATABASE_URL = "sqlite+aiosqlite:///./test.db"`  
-  Für Produktion: ENV nutzen oder Postgres einrichten.
-- **ImageKit**: `storage_imagekit.py` liest `IMAGEKIT_*` aus `.env`.
-- **CORS**: Bei abweichenden Hosts/Ports ggf. `CORSMiddleware` ergänzen.
-- **JWT**: `JWT_SECRET` sicher halten und regelmäßig rotieren.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/post/{post_id}/comments` | Retrieve comments for a post |
+| POST | `/post/{post_id}/comments` | Add a comment to a post |
 
----
+The application's post and comment endpoints require authentication.
 
-## Troubleshooting
+## Database
 
-- **`no module named app`**  
-  Imports/Startpfade korrigieren. Start über `run_backend.py` oder `uvicorn backend.api:app`.
+Lichtblick uses SQLite with asynchronous SQLAlchemy sessions.
 
-- **Streamlit Warnung „use_column_width deprecated“**  
-  Frontend nutzt `use_container_width=True` (berücksichtigt).
+The application includes three main data models.
 
-- **SessionState-Fehler beim Kommentieren**  
-  Kommentare werden in einem `st.form(..., clear_on_submit=True)` gepostet → behoben.
+### User
 
-- **Uploads schlagen fehl**  
-  `.env` prüfen (`IMAGEKIT_*` und korrekter `IMAGEKIT_URL`‑Endpoint).
+Stores account and authentication-related information, including:
 
-- **Kommentare verschwinden nach Reload**  
-  Sicherstellen, dass Kommentar‑Endpunkte aktiv sind und Tabelle existiert. Sonst fällt UI lokal zurück.
+- Unique user ID
+- Email address
+- Hashed password
+- Account status
 
-- **Dark‑Mode schaltet nicht**  
-  Browser‑Cache leeren oder Seite neu laden. CSS‑Variablen werden dynamisch gesetzt.
+### Post
 
----
+Stores information about published media:
 
-## Sicherheit & Secrets
+- Unique post ID
+- Author ID
+- Caption
+- Media URL
+- Media type and filename
+- Creation timestamp
 
-- `.env` niemals committen.  
-- ImageKit‑Schlüssel bei Leck **sofort** rotieren.  
-- In Produktion HTTPS erzwingen, starke Passwörter verlangen, Session‑/Rate‑Limits erwägen.
+### Comment
 
----
+Stores comments associated with posts:
 
-## Tests & manuelle Checks
+- Unique comment ID
+- Post ID
+- Author ID
+- Comment text
+- Creation timestamp
 
-Schneller Smoke‑Test:
+The application uses relationships between users, posts, and comments to associate content with its respective author.
 
-1. Backend starten → Log ohne Fehler.
-2. Frontend starten → Registrieren → Anmelden.
-3. Bild hochladen → Beitrag erscheint.
-4. Kommentar hinzufügen → Seite neu laden → Kommentar bleibt.
-5. Beitrag als Besitzer löschen → Eintrag verschwindet.
+## Technical Highlights
 
-Optional automatisieren (PyTest) und HTTP‑Tests (HTTPie) ergänzen.
+This project explores several practical software development concepts:
 
----
+**REST API Development**
 
-## Deployment-Hinweise
+Implementation of application endpoints using FastAPI, including request handling, authentication dependencies, and database operations.
 
-- Produktion: `reload=False`, Prozessmanager oder Gunicorn+Uvicorn‑Worker hinter Nginx/Caddy.
-- Datenbank: Für Last oder mehrere Instanzen auf **PostgreSQL** wechseln.
-- Statisches Caching/CDN für Medien übernimmt ImageKit.
+**Authentication and Authorization**
 
----
+Integration of JWT-based authentication and ownership checks for operations such as deleting posts.
 
-## Git & GitHub
+**Asynchronous Database Access**
 
-**.gitignore** (Beispiel):
+Use of SQLAlchemy asynchronous sessions for querying and modifying persistent application data.
 
-```
-.venv/
-__pycache__/
-*.pyc
-.env
-*.db
-.streamlit/
-```
+**External Service Integration**
 
-Initialer Push:
+Integration of the ImageKit SDK to upload media and retrieve hosted media URLs.
 
-```bash
-git init
-git add .
-git commit -m "Initial commit: Lichtblick"
-git branch -M main
-git remote add origin <dein-repo-url>
-git push -u origin main
-```
+**Frontend-Backend Communication**
 
----
+Connection between an interactive Streamlit interface and a FastAPI backend through HTTP requests.
 
-## Roadmap
+**Configuration Management**
 
-- Persistente Likes/Dislikes im Backend
-- Paging/Filter, Suche
-- Alternativer Storage (S3 kompatibel)
-- Rollen/Rechte, Moderation
-- Tests (PyTest) und CI
+Use of environment variables to separate application configuration and API credentials from source code.
 
----
+## Current Limitations
 
-## Lizenz
+Lichtblick is a development prototype, not a production-ready social media platform.
 
-Wähle eine Lizenz und füge sie als `LICENSE` hinzu (z. B. MIT).
+The current implementation has several limitations:
+
+- Likes and dislikes are not consistently persisted through backend endpoints.
+- SQLite is used as the local database.
+- Automated test coverage has not been established.
+- Server-side media validation and upload limits require additional hardening.
+- Feed and comment API responses currently include author email information.
+- Additional security and deployment measures would be required for public production use.
+
+These limitations are documented to distinguish implemented functionality from potential future improvements.
+
+## Potential Future Improvements
+
+Possible extensions include:
+
+- Persistent backend support for reactions
+- Pagination and search functionality
+- Enhanced user profiles
+- More comprehensive media upload validation
+- Automated backend and API tests
+- Continuous integration
+- Expanded moderation and authorization features
+
+These items are future possibilities and are not presented as implemented features.
+
+## License
+
+This project is licensed under the MIT License.
+
+See the [LICENSE](LICENSE) file for details.

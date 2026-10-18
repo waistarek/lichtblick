@@ -1,18 +1,36 @@
-# Python-generated files
+
+# Python
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Virtual environments
 .venv/
+venv/
+env/
 
 # Environment variables and secrets
 .env
 .env.*
 !.env.example
 
-# Local database
-test.db
+# Local SQLite databases
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Logs and local files
+*.log
+.DS_Store
+
+# IDE settings
+.idea/
+.vscode/
